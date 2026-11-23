@@ -1,0 +1,6 @@
+{
+  "name": "Bubble Shooter Pro",
+  "description": "Colorful 100-level Android bubble shooter arcade game with touch aiming, match-3+ bubble popping physics, synthesized sound effects, scores, high scores, and cloud progress sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

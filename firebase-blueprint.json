@@ -1,0 +1,140 @@
+{
+  "entities": {
+    "PlayerProfile": {
+      "title": "PlayerProfile",
+      "description": "Stores a player's Bubble Shooter Pro global profile, high score, stars, unlocked level, daily reward state, coins, and gameplay preferences.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID matching the document ID."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Player display name shown on profile and settings."
+        },
+        "highScore": {
+          "type": "integer",
+          "description": "Highest single-level score achieved by the player."
+        },
+        "totalStars": {
+          "type": "integer",
+          "description": "Cumulative stars earned across all 100 levels (0 to 300)."
+        },
+        "highestUnlockedLevel": {
+          "type": "integer",
+          "description": "Highest unlocked level number from 1 to 100."
+        },
+        "bonusCoins": {
+          "type": "integer",
+          "description": "Bonus coins earned from daily rewards and level completions for rainbow boosters."
+        },
+        "lastClaimedDailyRewardDay": {
+          "type": "string",
+          "description": "ISO date string (YYYY-MM-DD) when the player last claimed the daily gift box, or empty string if never claimed."
+        },
+        "soundEnabled": {
+          "type": "boolean",
+          "description": "Whether synthesized arcade sound effects are enabled."
+        },
+        "hapticsEnabled": {
+          "type": "boolean",
+          "description": "Whether tactile vibration feedback on pops is enabled."
+        },
+        "aimGuideExtended": {
+          "type": "boolean",
+          "description": "Whether extended wall-bounce dotted aim guide is enabled."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was created. Clients must submit FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was last updated. Clients must submit FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "highScore",
+        "totalStars",
+        "highestUnlockedLevel",
+        "bonusCoins",
+        "lastClaimedDailyRewardDay",
+        "soundEnabled",
+        "hapticsEnabled",
+        "aimGuideExtended",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LevelProgress": {
+      "title": "LevelProgress",
+      "description": "Stores a player's best score, earned stars, completion state, and attempts for a specific level (1 to 100).",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID matching parent userId."
+        },
+        "levelNumber": {
+          "type": "integer",
+          "description": "Level number between 1 and 100."
+        },
+        "bestScore": {
+          "type": "integer",
+          "description": "Highest score achieved on this level."
+        },
+        "stars": {
+          "type": "integer",
+          "description": "Highest stars earned on this level (0 to 3)."
+        },
+        "completed": {
+          "type": "boolean",
+          "description": "Whether the player has cleared this level at least once."
+        },
+        "attempts": {
+          "type": "integer",
+          "description": "Total number of times the player played this level."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when first recorded. Clients must submit FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when last updated. Clients must submit FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "levelNumber",
+        "bestScore",
+        "stars",
+        "completed",
+        "attempts",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/PlayerProfile"
+      },
+      "description": "Per-user Bubble Shooter Pro global profile, high score, unlocked level, daily rewards, and settings."
+    },
+    "/users/{userId}/level_progress/{levelDocId}": {
+      "schema": {
+        "$ref": "#/entities/LevelProgress"
+      },
+      "description": "Per-user level progress documents keyed as level_1 through level_100."
+    }
+  }
+}

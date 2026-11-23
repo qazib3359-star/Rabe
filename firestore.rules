@@ -1,0 +1,206 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable hardened helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidPlayerProfile(data, userId) {
+      return data.userId is string &&
+             data.userId == request.auth.uid &&
+             data.userId == userId &&
+             data.displayName is string &&
+             data.displayName.size() >= 1 &&
+             data.displayName.size() <= 60 &&
+             data.highScore is int &&
+             data.highScore >= 0 &&
+             data.highScore <= 100000000 &&
+             data.totalStars is int &&
+             data.totalStars >= 0 &&
+             data.totalStars <= 300 &&
+             data.highestUnlockedLevel is int &&
+             data.highestUnlockedLevel >= 1 &&
+             data.highestUnlockedLevel <= 100 &&
+             data.bonusCoins is int &&
+             data.bonusCoins >= 0 &&
+             data.bonusCoins <= 10000000 &&
+             data.lastClaimedDailyRewardDay is string &&
+             data.lastClaimedDailyRewardDay.size() <= 20 &&
+             data.soundEnabled is bool &&
+             data.hapticsEnabled is bool &&
+             data.aimGuideExtended is bool &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    function isValidLevelProgress(data, userId, levelDocId) {
+      return data.userId is string &&
+             data.userId == request.auth.uid &&
+             data.userId == userId &&
+             data.levelNumber is int &&
+             data.levelNumber >= 1 &&
+             data.levelNumber <= 100 &&
+             levelDocId == ('level_' + string(data.levelNumber)) &&
+             data.bestScore is int &&
+             data.bestScore >= 0 &&
+             data.bestScore <= 10000000 &&
+             data.stars is int &&
+             data.stars >= 0 &&
+             data.stars <= 3 &&
+             data.completed is bool &&
+             data.attempts is int &&
+             data.attempts >= 0 &&
+             data.attempts <= 1000000 &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll([
+                         'userId',
+                         'displayName',
+                         'highScore',
+                         'totalStars',
+                         'highestUnlockedLevel',
+                         'bonusCoins',
+                         'lastClaimedDailyRewardDay',
+                         'soundEnabled',
+                         'hapticsEnabled',
+                         'aimGuideExtended',
+                         'createdAt',
+                         'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId',
+                         'displayName',
+                         'highScore',
+                         'totalStars',
+                         'highestUnlockedLevel',
+                         'bonusCoins',
+                         'lastClaimedDailyRewardDay',
+                         'soundEnabled',
+                         'hapticsEnabled',
+                         'aimGuideExtended',
+                         'createdAt',
+                         'updatedAt'
+                       ]) &&
+                       isValidPlayerProfile(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidPlayerProfile(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         // Action: Update gameplay progress / high score / stars / coins
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'highScore',
+                           'totalStars',
+                           'highestUnlockedLevel',
+                           'bonusCoins',
+                           'updatedAt'
+                         ]) ||
+                         // Action: Claim daily reward
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'bonusCoins',
+                           'lastClaimedDailyRewardDay',
+                           'updatedAt'
+                         ]) ||
+                         // Action: Update settings or display name
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'displayName',
+                           'soundEnabled',
+                           'hapticsEnabled',
+                           'aimGuideExtended',
+                           'updatedAt'
+                         ]) ||
+                         // Action: Spend bonus coins on booster
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'bonusCoins',
+                           'updatedAt'
+                         ])
+                       );
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /level_progress/{levelDocId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(levelDocId);
+        allow list: if isOwner(userId) && isValidId(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(levelDocId) &&
+                         incoming().keys().hasAll([
+                           'userId',
+                           'levelNumber',
+                           'bestScore',
+                           'stars',
+                           'completed',
+                           'attempts',
+                           'createdAt',
+                           'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId',
+                           'levelNumber',
+                           'bestScore',
+                           'stars',
+                           'completed',
+                           'attempts',
+                           'createdAt',
+                           'updatedAt'
+                         ]) &&
+                         isValidLevelProgress(incoming(), userId, levelDocId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(levelDocId) &&
+                         isValidLevelProgress(incoming(), userId, levelDocId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().levelNumber == existing().levelNumber &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'bestScore',
+                           'stars',
+                           'completed',
+                           'attempts',
+                           'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(levelDocId);
+      }
+    }
+  }
+}
